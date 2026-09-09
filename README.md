@@ -1,6 +1,9 @@
 # NexaRoll AI — Smart Biometric Attendance System
 
 NexaRoll AI is an enterprise-grade AI-powered classroom attendance platform featuring multi-modal biometric identification (Facial Recognition and Voice ID). Designed for modern educators and students, it eliminates roll-call overhead and manual sign-in sheets with real-time neural verification.
+ 
+- **Product Showcase & Landing Page**: [https://nexaroll-ai-attendance-landing.vercel.app](https://nexaroll-ai-attendance-landing.vercel.app)
+- **Deployment Link**: [https://nexaroll-ai-attendance-landing-4k3tb5glk-kans1.vercel.app](https://nexaroll-ai-attendance-landing-4k3tb5glk-kans1.vercel.app)
 
 ---
 
