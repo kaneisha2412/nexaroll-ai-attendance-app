@@ -59,7 +59,28 @@ NexaRoll AI is an enterprise-grade AI-powered classroom attendance platform feat
    cp .env.example .env
    ```
 
-5. Launch the application:
+5. Launch the services:
+
+   The platform consists of **3 coordinated services / background tasks**:
+
    ```bash
-   streamlit run app.py
+   # Service 1: Core Streamlit Attendance Application (Port 8501)
+   streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+
+   # Service 2: Mobile QR Edge Tunnel (Cloudflare HTTPS daemon)
+   python3 tunnel_manager.py
+
+   # Service 3: Product Showcase & Landing Page (Port 5002)
+   cd ../landing && python3 app.py
    ```
+
+---
+
+## 🛠️ System Architecture: The 3 Core Running Tasks
+
+| # | Service / Task | Command | Default Port / URL | Purpose |
+| :-: | :--- | :--- | :---: | :--- |
+| **1** | **Streamlit Attendance App** | `streamlit run app.py --server.address 0.0.0.0 --server.port 8501` | `http://localhost:8501` *(LAN: `0.0.0.0:8501`)* | Core multi-modal AI biometric application (Teacher dashboards, Student portal, neural face detection, acoustic voice verification, and Supabase cloud sync). |
+| **2** | **Cloudflare QR Tunnel (`tunnel_manager.py`)** | `python3 tunnel_manager.py` | Secure Cloudflare HTTPS (`https://*.trycloudflare.com`) | Monitors and manages a background Cloudflare edge tunnel forwarding to port 8501. Writes the live URL to `.tunnel_url` so QR codes allow mobile devices on cellular data (4G/5G) to connect with full camera and mic permissions enabled. |
+| **3** | **Showcase & Landing Page Server** | `python3 app.py` *(in `landing/`)* | `http://localhost:5002` *(Live: [Vercel](https://nexaroll-ai-attendance-landing.vercel.app))* | Lightweight Flask showcase providing product walkthroughs, feature tours, and call-to-action routing into the live attendance portal. |
+
