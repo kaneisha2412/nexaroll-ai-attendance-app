@@ -1,50 +1,98 @@
 import streamlit as st
-from src.database.db import enroll_student_to_subject
-from src.database.config import supabase
 from PIL import Image
-import time
 
 
 @st.dialog("Capture or upload photos")
 def add_photos_dialog():
+    st.markdown("Add classroom photos to scan for attendance.")
 
-    st.write('Add classroom photos to scan for attendance')
+    if 'photo_mode_choice' not in st.session_state:
+        st.session_state.photo_mode_choice = "📁 Upload"
 
-    if 'photo_tab' not in st.session_state:
-        st.session_state.photo_tab = 'camera'
+    photo_mode = st.radio(
+        "Select Input Mode",
+        options=["📷 Camera", "📁 Upload"],
+        index=1 if st.session_state.photo_mode_choice == "📁 Upload" else 0,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="add_photo_mode_radio"
+    )
+    st.session_state.photo_mode_choice = photo_mode
 
-    t1, t2 = st.columns(2)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    with t1:
-        type_camera = "primary" if st.session_state.photo_tab == 'camera' else 'tertiary'
-        if st.button('Camera', type=type_camera, width='stretch'):
-            st.session_state.photo_tab = 'camera'
+    if 'dialog_photo_uploader_key' not in st.session_state:
+        st.session_state.dialog_photo_uploader_key = 0
 
+    dialog_ver = st.session_state.dialog_photo_uploader_key
 
-
-    with t2:
-        type_upload = "primary" if st.session_state.photo_tab == 'upload' else 'tertiary'
-        if st.button('Upload photos', type=type_upload, width='stretch'):
-            st.session_state.photo_tab = 'upload'
-
-    if st.session_state.photo_tab == 'camera':
-        cam_photo = st.camera_input('Take Snapshot', key='dialog_cam')
+    if photo_mode == "📷 Camera":
+        st.caption("Use your device camera to capture a classroom photo:")
+        cam_photo = st.camera_input("Take a photo", key=f"dialog_camera_widget_{dialog_ver}")
         if cam_photo:
-            st.session_state.attendance_images.append(Image.open(cam_photo))
-            st.toast('Photo Captured')
-            st.rerun()
+            try:
+                cam_photo.seek(0)
+                img = Image.open(cam_photo).convert("RGB")
+                token = getattr(cam_photo, "file_id", f"{cam_photo.name}:{cam_photo.size}")
+                processed = st.session_state.setdefault("processed_attendance_captures", [])
+                if token not in processed:
+                    st.session_state.attendance_images.append(img)
+                    processed.append(token)
+                    st.toast("Photo captured successfully!")
+            except Exception as e:
+                st.error(f"Error reading camera photo: {e}")
 
-
-    if st.session_state.photo_tab == 'upload':
-        uploaded_files = st.file_uploader( 'choose image files', type=['jpg', 'png', 'jpeg' ], accept_multiple_files=True, key='dialog_upload')
+    else:
+        st.caption("Choose image files (Drag and drop JPG or PNG images below):")
+        uploaded_files = st.file_uploader(
+            "Choose image files",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            help="Limit 200MB per file • JPG, JPEG, PNG",
+            key=f"dialog_uploader_widget_{dialog_ver}"
+        )
 
         if uploaded_files:
+            processed = st.session_state.setdefault("processed_attendance_uploads", [])
+            added_any = False
             for f in uploaded_files:
-                st.session_state.attendance_images.append(Image.open(f))
-            
-            st.toast('Photo Uploaded Successfully')
+                token = getattr(f, "file_id", f"{f.name}:{f.size}")
+                if token not in processed:
+                    try:
+                        f.seek(0)
+                        st.session_state.attendance_images.append(Image.open(f).convert("RGB"))
+                        processed.append(token)
+                        added_any = True
+                    except Exception as e:
+                        st.error(f"Failed to load {f.name}: {e}")
+            if added_any:
+                st.toast(f"{len(st.session_state.attendance_images)} photo(s) loaded!")
+
+    # Live preview of loaded photos
+    if st.session_state.get("attendance_images"):
+        count = len(st.session_state.attendance_images)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.success(f"📸 **{count} photo{'s' if count != 1 else ''}** ready for face analysis.")
+        preview_cols = st.columns(min(count, 4))
+        for i, p_img in enumerate(st.session_state.attendance_images[-4:]):
+            with preview_cols[i % 4]:
+                st.image(p_img, use_container_width=True, caption=f"Photo {i+1}")
+
+        if st.button("🗑️ Clear Photos", key="dialog_clear_btn", use_container_width=True):
+            st.session_state.attendance_images = []
+            st.session_state["processed_attendance_captures"] = []
+            st.session_state["processed_attendance_uploads"] = []
+            st.session_state["processed_direct_cam"] = []
+            st.session_state["processed_direct_uploads"] = []
+            st.session_state.dialog_photo_uploader_key += 1
+            if 'face_uploader_key' in st.session_state:
+                st.session_state.face_uploader_key += 1
+            st.toast("Classroom photos cleared!", icon="🗑️")
             st.rerun()
 
     st.divider()
-    if st.button('Done', type='primary', width='stretch'):
+    if st.button("Done", type="primary", use_container_width=True, key="done_photo_dialog"):
+        st.session_state.show_add_photo_dialog = False
         st.rerun()
+
+

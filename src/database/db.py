@@ -1,36 +1,76 @@
 from src.database.config import supabase
-import bcrypt
+try:
+    import bcrypt
+    def hash_pass(pwd):
+        return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
 
+    def check_pass(pwd, hashed):
+        return bcrypt.checkpw(pwd.encode(), hashed.encode())
+except ImportError:
+    import hashlib
+    def hash_pass(pwd):
+        return "sha256$" + hashlib.sha256(pwd.encode()).hexdigest()
 
-
-def hash_pass(pwd):
-    return bcrypt.hashpw(pwd.encode(), bcrypt.gensalt()).decode()
-
-def check_pass(pwd, hashed):
-    return bcrypt.checkpw(pwd.encode(), hashed.encode())
+    def check_pass(pwd, hashed):
+        if hashed.startswith("sha256$"):
+            return ("sha256$" + hashlib.sha256(pwd.encode()).hexdigest()) == hashed
+        return False
 
 
 def check_teacher_exists(username):
-    # Check for unique username, returns false when username is already taken
-    response = supabase.table("teachers").select("username").eq("username", username).execute()
+    # Check for unique username case-insensitively
+    uname = (username or "").strip()
+    if not uname:
+        return False
+    try:
+        response = supabase.table("teachers").select("username").ilike("username", uname).execute()
+    except Exception:
+        response = supabase.table("teachers").select("username").eq("username", uname).execute()
     return len(response.data) > 0 
 
 
-
 def create_teacher(username, password, name):
-
-    data = { "username" : username, "password": hash_pass(password), "name": name}
+    uname = (username or "").strip()
+    data = {"username": uname, "password": hash_pass(password), "name": name.strip()}
     response = supabase.table("teachers").insert(data).execute()
     return response.data
 
 
 def teacher_login(username, password):
-    response = supabase.table("teachers").select("*").eq("username", username).execute()
-    if response.data:
+    uname = (username or "").strip()
+    pwd = password or ""
+    if not uname or not pwd:
+        return None
+
+    try:
+        response = supabase.table("teachers").select("*").ilike("username", uname).execute()
+    except Exception:
+        response = supabase.table("teachers").select("*").eq("username", uname).execute()
+
+    if not response or not response.data:
+        try:
+            response = supabase.table("teachers").select("*").eq("username", uname).execute()
+        except Exception:
+            pass
+
+    if response and response.data:
         teacher = response.data[0]
-        if check_pass(password, teacher['password']):
+        if check_pass(pwd, teacher['password']):
+            return teacher
+        if check_pass(pwd.strip(), teacher['password']):
             return teacher
     return None
+
+
+def update_teacher_password(username, new_password):
+    uname = (username or "").strip()
+    hashed = hash_pass(new_password)
+    try:
+        res = supabase.table("teachers").update({"password": hashed}).ilike("username", uname).execute()
+    except Exception:
+        res = supabase.table("teachers").update({"password": hashed}).eq("username", uname).execute()
+    return res.data if res else None
+
 
 
 def get_all_students():

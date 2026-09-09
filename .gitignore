@@ -1,0 +1,28 @@
+# Environment & Secrets
+.env
+.env.*
+.env.local
+!.env.example
+.streamlit/secrets.toml
+.streamlit/secrets.toml*
+!.streamlit/secrets.toml.example
+
+# Databases & Cache
+*.db
+*.sqlite3
+*.db-journal
+attendance_local.db
+
+# Proprietary Architecture & Confidential Specs
+*BIOMETRICS_AND_TECH_ARCHITECTURE*
+
+# Machine & OS Artifacts
+.DS_Store
+*/.DS_Store
+*/**/.DS_Store
+__pycache__/
+*.pyc
+.tunnel_url
+bin/
+
+
